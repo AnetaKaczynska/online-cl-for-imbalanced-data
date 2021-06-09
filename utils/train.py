@@ -15,7 +15,6 @@ def train(model, train_dl, test_dl, epochs_per_set=1, lr=1e-3, buffer=None):
         for input, target in task:
             input = input.float().cuda()
             target = target.cuda()
-            output = model(input)
             for step in range(5):
                 optimizer.zero_grad()
                 output = model(input)
@@ -37,7 +36,7 @@ def train(model, train_dl, test_dl, epochs_per_set=1, lr=1e-3, buffer=None):
               buffer.update_memory(input, target)
 
         model.eval()
-        if (i+1) % epochs_per_set == 0:
+        if (task_id+1) % epochs_per_set == 0:
             predictions = []
             targets = []
             with torch.no_grad():
