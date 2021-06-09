@@ -4,3 +4,6 @@ Reproduction of ["Online Continual Learning for Imbalanced Data"](http://proceed
 https://colab.research.google.com/drive/1FMe3HYgzEffZ5kauYio4gmwwqpkqtEhO?usp=sharing
 
 https://colab.research.google.com/drive/1jJJ_66h1TUScFWgnBlozqIiFrFP5ksLI?usp=sharing
+
+## latest version
+https://colab.research.google.com/drive/1eg6UyBQhtytbUWXEg19gFfrOpwMAbOEo?usp=sharing
