@@ -1,7 +1,7 @@
 import torch
 from torch import nn, optim
 from sklearn.metrics import accuracy_score
-from utils.utils import val_acc_per_subset
+from .utils import val_acc_per_subset
 
 
 def train(model, train_dl, test_dl, epochs_per_set=1, lr=1e-3, buffer=None):
