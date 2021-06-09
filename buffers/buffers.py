@@ -25,6 +25,8 @@ class Random:
                 self.labels[random_place] = y
 
     def sample(self, k=10):
+        if self.memory_used == 0:
+            return None, None
         if k >= self.memory_used:
             return self.data[:self.memory_used], self.labels[:self.memory_used]
         indices = random.sample(range(self.memory_used), k)
@@ -55,6 +57,8 @@ class Reservoir:
         self.n += len(input)
 
     def sample(self, k):
+        if self.memory_used == 0:
+            return None, None
         if self.batch_size:
             k = self.batch_size
         if k >= self.memory_used:
@@ -124,12 +128,8 @@ class CBRS:
         """In our case, we propose the use of a custom replay sampling scheme, where the probability of replaying a certain stored instance is inversely
         proportional to the number of stored instances of the same class."""
 
-        # if self.batch_size:
-        #   k = self.batch_size
-        # if k >= self.memory_used:
-        #   return self.data[:self.memory_used], self.labels[:self.memory_used]
-        # indices = random.sample(range(self.memory_used), k)
-        # return self.data[indices], self.labels[indices]
+        if self.memory_used == 0:
+            return None, None
 
         if k >= self.memory_used:
             return self.data[:self.memory_used], self.labels[:self.memory_used]
