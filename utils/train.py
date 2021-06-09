@@ -6,7 +6,7 @@ from .utils import val_acc_per_subset
 
 def train(model, train_dl, test_dl, epochs_per_set=1, lr=1e-3, buffer=None):
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr)
     table = []
 
     for task_id, task in enumerate(train_dl):
