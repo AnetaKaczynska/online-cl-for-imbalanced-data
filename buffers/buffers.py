@@ -199,3 +199,63 @@ class CBRS:
             class_indices = list(class_indices)
             indices += class_indices
         return self.data[indices], self.labels[indices]
+
+
+class RingBuffer:
+
+	def __init__(self, *, memory_size, batch_size=None, n_of_classes=10, equal_distribution=False):
+		self.buffers = {}
+		self.memory_size = memory_size
+		self.n_of_classes = n_of_classes
+		self.memory_per_class = memory_size // n_of_classes
+		self.equal_distribution = equal_distribution
+		self.batch_size = batch_size
+
+	def update_memory(self, input, target):
+		for j, (x, y) in enumerate(zip(input, target)):
+			y = y.item()
+			if y not in self.buffers:
+				self.buffers[y] = deque(maxlen=self.memory_per_class)
+			buffer = self.buffers[y]
+			if len(buffer) == self.memory_per_class:
+				buffer.pop()
+			buffer.appendleft(x)
+
+	def sample(self, k):
+		if self.batch_size:
+			k = self.batch_size
+		data = []
+		labels = []
+		for class_id, buffer in self.buffers.items():
+			data += list(buffer)
+			labels += [torch.as_tensor(class_id, dtype=torch.long)] * len(buffer)
+		if len(data) == 0:
+			return torch.empty(0), torch.empty(0, dtype=torch.long)
+		if k >= len(data):
+			return torch.stack(data), torch.as_tensor(labels)
+   
+		if not self.equal_distribution:
+			indices = random.sample(range(len(data)), k)
+		else:
+			samples_per_set = self.__samples_per_set(k, len(self.buffers))
+			prev_size = 0
+			indices = []
+			for class_id, buffer in self.buffers.items():
+				indices += random.sample(range(prev_size, prev_size + len(buffer)), samples_per_set[class_id])
+				prev_size += len(buffer)
+		return torch.stack(self.__get_positions(data, indices)), torch.as_tensor(self.__get_positions(labels, indices))
+
+	def __samples_per_set(self, k, n_of_buffers):
+		t = k // n_of_buffers
+		r = k % n_of_buffers
+		samples_per_set = [t] * n_of_buffers
+		indices = random.sample(range(n_of_buffers), r)
+		for i in indices:
+			samples_per_set[i] += 1
+		return samples_per_set
+
+	def __get_positions(self, data, indices):
+		out = []
+		for idx in indices:
+			out.append(data[idx])
+		return out
