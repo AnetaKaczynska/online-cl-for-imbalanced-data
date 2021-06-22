@@ -6,21 +6,26 @@ from collections import defaultdict, deque
 
 class Random:
 
-    def __init__(self, memory_size, shape):
+    def __init__(self, memory_size, shape, uniform=False):
         self.memory_size = memory_size
         self.memory_used = 0
         self.data = torch.empty([memory_size, *shape])
         self.labels = torch.empty(memory_size, dtype=torch.long)
         self.save_or_not = [True, False]
+        self.uniform = uniform
+        self.class2indices = defaultdict(lambda: [])
 
     def update_memory(self, input, target):
         for j, (x, y) in enumerate(zip(input, target)):
             if self.memory_used < self.memory_size:
                 self.data[self.memory_used] = x
                 self.labels[self.memory_used] = y
+                self.class2indices[y.item()].append(self.memory_used)
                 self.memory_used += 1
             elif random.choice(self.save_or_not):
                 random_place = random.randint(0, self.memory_used-1)
+                self.class2indices[self.labels[random_place].item()].remove(random_place)
+                self.class2indices[y.item()].append(random_place)
                 self.data[random_place] = x
                 self.labels[random_place] = y
 
@@ -29,29 +34,54 @@ class Random:
             return None, None
         if k >= self.memory_used:
             return self.data[:self.memory_used], self.labels[:self.memory_used]
-        indices = random.sample(range(self.memory_used), k)
-        return self.data[indices], self.labels[indices]
+        if self.uniform:
+            indices = random.sample(range(self.memory_used), k)
+            return self.data[indices], self.labels[indices]
+        else: 
+            probs = {class_id: len(indices) / self.memory_used for class_id, indices in
+                 self.class2indices.items()}  # percentage of class images in memory
+            probs = {class_id: 1 - perc if 0 < perc < 1 else perc for class_id, perc in probs.items()}
+            classes = [class_id for class_id in range(len(probs))]
+            probs = [probs[class_id] for class_id in
+                    classes]  # assuming that tasks (classes) are in increasing order 0,1,2,...9
+            probs = [prob / sum(probs) for prob in probs]
+            # print(probs)
+            classes_ids = np.random.choice(classes, size=k, p=probs, replace=True)
+            classes_ids = list(classes_ids)
+            # print('drawn classes: ', classes_ids)
+            indices = []
+            for class_id in classes:
+                exampels_per_class = classes_ids.count(class_id)
+                class_indices = np.random.choice(self.class2indices[class_id], size=exampels_per_class, replace=True)
+                class_indices = list(class_indices)
+                indices += class_indices
+            return self.data[indices], self.labels[indices]
 
 
 class Reservoir:
 
-    def __init__(self, *, memory_size, shape, batch_size=None):
+    def __init__(self, *, memory_size, shape, batch_size=None, uniform=False):
         self.memory_size = memory_size
         self.memory_used = 0
         self.data = torch.empty([memory_size, *shape])
         self.labels = torch.empty(memory_size, dtype=torch.long)
         self.n = 0  # number of already observed samples from the data stream
         self.batch_size = batch_size
+        self.uniform = uniform
+        self.class2indices = defaultdict(lambda: [])
 
     def update_memory(self, input, target):
         for j, (x, y) in enumerate(zip(input, target)):
             if self.memory_used < self.memory_size:
                 self.data[self.memory_used] = x
                 self.labels[self.memory_used] = y
+                self.class2indices[y.item()].append(self.memory_used)
                 self.memory_used += 1
             else:
                 i = random.randint(0, self.n + j - 1)
                 if i < self.memory_size:
+                    self.class2indices[self.labels[i].item()].remove(i)
+                    self.class2indices[y.item()].append(i)
                     self.data[i] = x
                     self.labels[i] = y
         self.n += len(input)
@@ -59,12 +89,30 @@ class Reservoir:
     def sample(self, k):
         if self.memory_used == 0:
             return None, None
-        if self.batch_size:
-            k = self.batch_size
         if k >= self.memory_used:
             return self.data[:self.memory_used], self.labels[:self.memory_used]
-        indices = random.sample(range(self.memory_used), k)
-        return self.data[indices], self.labels[indices]
+        if self.uniform:
+            indices = random.sample(range(self.memory_used), k)
+            return self.data[indices], self.labels[indices]
+        else: 
+            probs = {class_id: len(indices) / self.memory_used for class_id, indices in
+                 self.class2indices.items()}  # percentage of class images in memory
+            probs = {class_id: 1 - perc if 0 < perc < 1 else perc for class_id, perc in probs.items()}
+            classes = [class_id for class_id in range(len(probs))]
+            probs = [probs[class_id] for class_id in
+                    classes]  # assuming that tasks (classes) are in increasing order 0,1,2,...9
+            probs = [prob / sum(probs) for prob in probs]
+            # print(probs)
+            classes_ids = np.random.choice(classes, size=k, p=probs, replace=True)
+            classes_ids = list(classes_ids)
+            # print('drawn classes: ', classes_ids)
+            indices = []
+            for class_id in classes:
+                exampels_per_class = classes_ids.count(class_id)
+                class_indices = np.random.choice(self.class2indices[class_id], size=exampels_per_class, replace=True)
+                class_indices = list(class_indices)
+                indices += class_indices
+            return self.data[indices], self.labels[indices]
 
 
 class CBRS:
@@ -151,4 +199,3 @@ class CBRS:
             class_indices = list(class_indices)
             indices += class_indices
         return self.data[indices], self.labels[indices]
-
